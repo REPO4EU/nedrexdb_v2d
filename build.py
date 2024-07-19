@@ -31,6 +31,10 @@ from nedrexdb.db.parsers import (
     sider,
     uberon,
     repotrial,
+    cosmic,
+    ncg,
+    intogen,
+    orphanet,
 )
 from nedrexdb.downloaders import get_versions, update_versions
 from nedrexdb.post_integration import (trim_uberon, drop_empty_collections,create_vector_indices)
@@ -80,6 +84,10 @@ def update(conf, download, version_update, create_embeddings):
         uberon.parse()
         uniprot.parse_proteins()
 
+        if version == "licensed":
+            cosmic.parse_gene_disease_associations()
+        ncg.parse_gene_disease_associations()
+
         # Sources that add node type but require existing nodes, too
         clinvar.parse()
 
@@ -113,6 +121,9 @@ def update(conf, download, version_update, create_embeddings):
 
         sider.parse()
         uniprot.parse_idmap()
+
+        intogen.parse_gene_disease_associations()
+        orphanet.parse_gene_disease_associations()    
 
         from nedrexdb.analyses import molecule_similarity
         molecule_similarity.run()
