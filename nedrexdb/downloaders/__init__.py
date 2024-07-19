@@ -19,6 +19,10 @@ from nedrexdb.downloaders.chembl import download_chembl as _download_chembl, get
 from nedrexdb.exceptions import (
     ProcessError as _ProcessError,
 )
+from nedrexdb.downloaders.ncg import download_ncg as _download_ncg
+from nedrexdb.downloaders.cosmic import download_cosmic as _download_cosmic
+from nedrexdb.downloaders.intogen import download_intogen as _download_intogen
+from nedrexdb.downloaders.orphanet import download_orphanet as _download_orphanet
 
 
 class Version:
@@ -78,6 +82,11 @@ def download_all(force=False, ignored_sources=set()):
         _download_chembl()
     if "biogrid" not in ignored_sources:
         _download_biogrid()
+        
+    _download_ncg()
+    _download_cosmic()
+    _download_intogen()
+    _download_orphanet()
 
     for source in filter(lambda i: i not in exclude_keys, sources):
 
@@ -92,6 +101,10 @@ def download_all(force=False, ignored_sources=set()):
         if source in {
             "drugbank",
             "disgenet"
+            "ncg",
+            "cosmic",
+            "intogen",
+            "orphanet",
         }:
             continue
 
