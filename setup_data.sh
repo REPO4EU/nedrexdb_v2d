@@ -13,6 +13,9 @@ wget https://cloud.uni-hamburg.de/s/CwfdZ5AHFcEckRF/download/disgenet.zip -q -O 
 echo "Downloaded disgenet.zip"
 wget https://cloud.uni-hamburg.de/s/PxWXAMY5bfS3ZcA/download/repotrial.zip -q -O repotrial.zip
 echo "Downloaded repotrial.zip"
+wget -nv https://zenodo.org/records/12800929/files/cosmic.zip?download=1 -O cosmic.zip
+wget -nv https://zenodo.org/records/12800929/files/intogen.zip?download=1 -O intogen.zip
+wget -nv https://zenodo.org/records/12800929/files/ncg.zip?download=1 -O ncg.zip
 
 for file in *.zip; do
     echo "Unzipping $file..."
