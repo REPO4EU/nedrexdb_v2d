@@ -84,7 +84,7 @@ def download_all(force=False, ignored_sources=set()):
         _download_biogrid()
         
     _download_ncg()
-    _download_cosmic()
+    #_download_cosmic()
     _download_intogen()
     _download_orphanet()
 

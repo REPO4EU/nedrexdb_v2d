@@ -4,18 +4,15 @@ DOWNLOADS=$NEDREX_FILES/nedrex_data/downloads
 
 mkdir -p $DOWNLOADS
 cd $DOWNLOADS
-echo "Starting dump downloads"
-wget https://cloud.uni-hamburg.de/s/RiAtjZC3bb7bg7n/download/bioontology.zip -q -O bioontology.zip
-echo "Downloaded bioontology.zip"
-wget https://cloud.uni-hamburg.de/s/5meqDbTbgydo6Tj/download/drugbank.zip -q -O drugbank.zip
-echo "Downloaded drugbank.zip"
-wget https://cloud.uni-hamburg.de/s/CwfdZ5AHFcEckRF/download/disgenet.zip -q -O disgenet.zip
-echo "Downloaded disgenet.zip"
-wget https://cloud.uni-hamburg.de/s/PxWXAMY5bfS3ZcA/download/repotrial.zip -q -O repotrial.zip
-echo "Downloaded repotrial.zip"
 wget -nv https://zenodo.org/records/12800929/files/cosmic.zip?download=1 -O cosmic.zip
 wget -nv https://zenodo.org/records/12800929/files/intogen.zip?download=1 -O intogen.zip
 wget -nv https://zenodo.org/records/12800929/files/ncg.zip?download=1 -O ncg.zip
+wget -nv https://cloud.uni-hamburg.de/s/RiAtjZC3bb7bg7n/download/bioontology.zip -O bioontology.zip
+wget -nv https://cloud.uni-hamburg.de/s/5meqDbTbgydo6Tj/download/drugbank.zip -O drugbank.zip
+wget -nv https://cloud.uni-hamburg.de/s/PxWXAMY5bfS3ZcA/download/repotrial.zip -O repotrial.zip
+wget -nv https://zenodo.org/records/12806709/files/cosmic.zip?download=1 -O cosmic.zip
+wget -nv https://zenodo.org/records/12806709/files/intogen.zip?download=1 -O intogen.zip
+wget -nv https://zenodo.org/records/12806709/files/ncg.zip?download=1 -O ncg.zip
 
 for file in *.zip; do
     echo "Unzipping $file..."
