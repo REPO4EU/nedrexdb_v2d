@@ -105,6 +105,7 @@ def download_all(force=False, ignored_sources=set()):
             "cosmic",
             "intogen",
             "orphanet",
+            "opentargets",
         }:
             continue
 
