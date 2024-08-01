@@ -18,6 +18,7 @@ RUN add-apt-repository \
    stable"
 
 RUN apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io
+RUN apt-get update && apt-get install -y unzip
 
 ENV CONDA_DIR /opt/conda
 RUN wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
@@ -41,6 +42,7 @@ FROM nedrexdb_base
 RUN apt-get update && apt-get upgrade -y && apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y
 
 RUN mamba update pip tqdm cryptography
+RUN mamba install openjdk
 
 WORKDIR /data/nedrex_files/
 RUN mkdir -p nedrex_api/static

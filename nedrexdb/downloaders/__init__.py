@@ -23,6 +23,7 @@ from nedrexdb.downloaders.ncg import download_ncg as _download_ncg
 from nedrexdb.downloaders.cosmic import download_cosmic as _download_cosmic
 from nedrexdb.downloaders.intogen import download_intogen as _download_intogen
 from nedrexdb.downloaders.orphanet import download_orphanet as _download_orphanet
+from nedrexdb.downloaders.opentargets import download_opentargets as _download_opentargets
 
 
 class Version:
@@ -83,6 +84,7 @@ def download_all(force=False, ignored_sources=set()):
     if "biogrid" not in ignored_sources:
         _download_biogrid()
         
+    _download_opentargets()
     _download_ncg()
     #_download_cosmic()
     _download_intogen()
