@@ -84,12 +84,12 @@ def update(conf, download, version_update, create_embeddings):
         ncbi.parse_gene_info()
         uberon.parse()
         uniprot.parse_proteins()
-
+        
         if version == "licensed":
             cosmic.parse_gene_disease_associations()
         ncg.parse_gene_disease_associations()
 
-        # Sources that add node type but require existing nodes, too
+    # Sources that add node type but require existing nodes, too
         clinvar.parse()
 
         if version == "licensed":
