@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import pandas as pd
+import time
 
 import click
 import os
@@ -40,6 +42,12 @@ from nedrexdb.db.parsers import (
 from nedrexdb.downloaders import get_versions, update_versions
 from nedrexdb.post_integration import (trim_uberon, drop_empty_collections,create_vector_indices)
 
+def parse_method_scores():
+    method_scores_file = "data/hippie_perplexity_technique_scores"
+    method_scores = pd.read_csv(method_scores_file, sep='\t', usecols=['methods', 'score'])
+    method_scores_dict = dict(zip(method_scores['methods'], method_scores['score']))
+    print(method_scores_dict)
+    return method_scores_dict
 
 @click.group()
 def cli():
@@ -84,6 +92,11 @@ def update(conf, download, version_update, create_embeddings):
         ncbi.parse_gene_info()
         uberon.parse()
         uniprot.parse_proteins()
+        methods_scores = parse_method_scores()
+        
+        iid.parse_ppis(methods_scores)
+        intact.parse(methods_scores)
+        biogrid.parse_ppis(methods_scores)
         
         if version == "licensed":
             cosmic.parse_gene_disease_associations()
@@ -108,13 +121,10 @@ def update(conf, download, version_update, create_embeddings):
         repotrial.parse()
 
         # Sources adding edges.
-        biogrid.parse_ppis()
         ctd.parse()
         disgenet.parse_gene_disease_associations()
         go.parse_goa()
         hpa.parse_hpa()
-        iid.parse_ppis()
-        intact.parse()
 
         if version == "licensed":
             omim.parse_gene_disease_associations()
