@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import time
+import pandas as pd
 
 import click
 
@@ -36,9 +37,16 @@ from nedrexdb.db.parsers import (
     ncg,
     intogen,
     orphanet,
+    opentargets,
 )
 from nedrexdb.post_integration import trim_uberon, drop_empty_collections
 
+def parse_method_scores():
+    method_scores_file = "./nedrexdb/data/hippie_perplexity_technique_scores.tsv"
+    method_scores = pd.read_csv(method_scores_file, sep='\t', usecols=['methods', 'score'])
+    method_scores_dict = dict(zip(method_scores['methods'], method_scores['score']))
+    print(method_scores_dict)
+    return method_scores_dict
 
 @click.group()
 def cli():
@@ -69,17 +77,15 @@ def update(conf, download):
         downloaders.download_all()
 
     # Parse sources contributing only nodes (and edges amongst those nodes)
+    methods_scores = parse_method_scores()
+    
     go.parse_go()
     mondo.parse_mondo_json()
     ncbi.parse_gene_info()
     uberon.parse()
     uniprot.parse_proteins()
-
-
-    cosmic.parse_gene_disease_associations()
-    ncg.parse_gene_disease_associations()
-
     # Sources that add node type but require existing nodes, too
+    cosmic.parse_gene_disease_associations()
     clinvar.parse()
 
     if version == "licensed":
@@ -98,13 +104,14 @@ def update(conf, download):
     repotrial.parse()
     #
     # Sources adding edges.
-    biogrid.parse_ppis()
+    biogrid.parse_ppis(methods_scores)
     ctd.parse()
     disgenet.parse_gene_disease_associations()
     go.parse_goa()
     hpa.parse_hpa()
-    iid.parse_ppis()
-    intact.parse()
+    iid.parse_ppis(methods_scores)
+    intact.parse(methods_scores)
+    
 
     if version == "licensed":
         omim.parse_gene_disease_associations()
@@ -113,7 +120,9 @@ def update(conf, download):
     uniprot.parse_idmap()
 
     intogen.parse_gene_disease_associations()
-    orphanet.parse_gene_disease_associations()    
+    orphanet.parse_gene_disease_associations()
+    opentargets.parse_gene_disease_associations()    
+    ncg.parse_gene_disease_associations()
 
     from nedrexdb.analyses import molecule_similarity
 
