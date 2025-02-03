@@ -9,6 +9,17 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y supervisor libgtk-3-dev wget apt-utils
 RUN apt-get update && apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release software-properties-common cron unzip
 RUN apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y
+FROM ubuntu:noble as nedrexdb_base
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y supervisor libgtk-3-dev wget apt-utils
+RUN apt-get update && apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release software-properties-common cron unzip
+RUN apt-get autoclean -y && apt-get autoremove -y && apt-get clean -y
 
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 
@@ -54,11 +65,12 @@ COPY cron/cron.prod /etc/cron.d/cron-nedrex
 RUN chmod 0644 /etc/cron.d/cron-nedrex
 RUN crontab /etc/cron.d/cron-nedrex
 RUN touch /var/log/nedrexdb.log
+RUN touch /var/log/nedrexdb.log
 
 COPY . ./
 RUN rm -rf cron
 RUN pip install .[dependencies]
+RUN mamba install -c conda-forge urllib3=2.3.0 -y[dependencies]
 RUN mamba install -c conda-forge urllib3=2.3.0 -y
 
 CMD cron && bash build.sh >> /var/log/nedrexdb.log 2>&1 & tail -f /var/log/nedrexdb.log
-
