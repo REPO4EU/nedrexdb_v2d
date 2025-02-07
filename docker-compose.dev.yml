@@ -18,7 +18,7 @@ services:
       - /tmp/nedrexdb_v2:/tmp
       - ./config/licensed_config.toml:/app/nedrexdb/.licensed_config.toml
       - ./config/open_config.toml:/app/nedrexdb/.open_config.toml
-      - /nfs/scratch/nedrex_files:/data/nedrex_files
+      - /localscratch/nedrex_files:/data/nedrex_files
 #    restart: always
     networks:
       - nedrexdb_default
