@@ -9,6 +9,7 @@ from zipfile import ZipFile as _ZipFile
 
 from more_itertools import chunked as _chunked
 from tqdm import tqdm as _tqdm
+from nedrexdb.db.models.edges.drug_interacts_with_drug import DrugInteractsWithDrug
 from xmljson import badgerfish as _bf
 
 from nedrexdb.db import MongoInstance
@@ -28,6 +29,39 @@ def _recursive_yield(elem):
         for i in elem:
             yield from _recursive_yield(i)
 
+
+class DrugBankDrugInteractor:
+    def __init__(self, entry):
+        self._entry = entry
+
+    def iter_interactions(self):
+        drug_interactions = self._entry.get(ns("drug-interactions"))
+        if not drug_interactions:
+            return []
+
+        for interaction in drug_interactions.get(ns("drug-interaction"), []):
+            drugbank_id = interaction.get("{http://www.drugbank.ca}drugbank-id", {}).get("$")
+            description = interaction.get("{http://www.drugbank.ca}description", {}).get("$", "")
+
+            if drugbank_id:
+                yield (f"drugbank.{drugbank_id}", description)
+
+    def get_drug(self):
+        return DrugBankEntry(self._entry).get_primary_domain_id()
+
+    def parse(self) -> list[DrugInteractsWithDrug]:
+        drug = self.get_drug()
+
+        updates = [
+            DrugInteractsWithDrug(
+                memberOne=drug,
+                memberTwo=interactingDrug,
+                description=description,
+                dataSources=["drugbank"],
+            )
+            for interactingDrug, description in self.iter_interactions()
+        ]
+        return updates
 
 class DrugBankDrugTarget:
     def __init__(self, entry):
@@ -267,7 +301,8 @@ def _entry_to_update(entry):
     entry_as_json = _bf.data(entry)[ns("drug")]
     db = DrugBankEntry(entry_as_json).parse().generate_update()
     dht = [i.generate_update() for i in DrugBankDrugTarget(entry_as_json).parse()]
-    return db, dht
+    diwd = [i.generate_update() for i in DrugBankDrugInteractor(entry_as_json).parse()]
+    return db, dht, diwd
 
 
 def parse_drugbank_open():
@@ -318,7 +353,7 @@ def _parse_drugbank():
         updates = pool.imap_unordered(_entry_to_update, db_iter(), chunksize=10)
         for chunk in _tqdm(_chunked(updates, 100), leave=False, desc="Parsing DrugBank"):
             chunk = [item for item in chunk if item]
-            drugs, drug_targets = zip(*chunk)
+            drugs, drug_targets, drug_interactors = zip(*chunk)
 
             drugs = list(drugs)
             MongoInstance.DB[Drug.collection_name].bulk_write(drugs)
@@ -330,3 +365,8 @@ def _parse_drugbank():
             #       targets, which causes the bulk_write method to fail.
             if drug_targets:
                 MongoInstance.DB[DrugHasTarget.collection_name].bulk_write(drug_targets)
+                
+            drug_interactors = list(chain(*drug_interactors))
+            print("Done with parsing. Number of drug interactions: ", len(drug_interactors))
+            if drug_interactors:
+                MongoInstance.DB[DrugInteractsWithDrug.collection_name].bulk_write(drug_interactors)
