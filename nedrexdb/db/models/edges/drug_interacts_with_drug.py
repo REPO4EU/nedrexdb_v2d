@@ -12,9 +12,9 @@ class DrugInteractsWithDrugBase(models.MongoMixin):
 
     @classmethod
     def set_indexes(cls, db):
-        db[cls.collection_name].create_index("sourceDomainId")
-        db[cls.collection_name].create_index("targetDomainId")
-        db[cls.collection_name].create_index([("sourceDomainId", 1), ("targetDomainId", 1)], unique=True)
+        db[cls.collection_name].create_index("memberOne")
+        db[cls.collection_name].create_index("memberTwo")
+        db[cls.collection_name].create_index([("memberOne", 1), ("memberTwo", 1)], unique=True)
 
 
 class DrugInteractsWithDrug(_BaseModel, DrugInteractsWithDrugBase):

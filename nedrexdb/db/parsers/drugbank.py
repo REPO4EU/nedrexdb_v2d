@@ -38,13 +38,22 @@ class DrugBankDrugInteractor:
         drug_interactions = self._entry.get(ns("drug-interactions"))
         if not drug_interactions:
             return []
+        
+        interactions = drug_interactions.get(ns("drug-interaction"), [])
+        # Check if it's a single OrderedDict or a list of them
+        if isinstance(interactions, dict):
+            interactions = [interactions]
 
-        for interaction in drug_interactions.get(ns("drug-interaction"), []):
-            drugbank_id = interaction.get("{http://www.drugbank.ca}drugbank-id", {}).get("$")
-            description = interaction.get("{http://www.drugbank.ca}description", {}).get("$", "")
+        for interaction in interactions:
+            try: 
+                drugbank_id = interaction.get("{http://www.drugbank.ca}drugbank-id", {}).get("$")
+                description = interaction.get("{http://www.drugbank.ca}description", {}).get("$", "")
 
-            if drugbank_id:
-                yield (f"drugbank.{drugbank_id}", description)
+                if drugbank_id:
+                    yield (f"drugbank.{drugbank_id}", description)
+            except Exception as e:
+                print(f"Error processing interaction: {interaction} + {self._entry}")
+                print(f"Exception: {e}")
 
     def get_drug(self):
         return DrugBankEntry(self._entry).get_primary_domain_id()
