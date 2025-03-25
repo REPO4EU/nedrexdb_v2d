@@ -133,3 +133,6 @@ dmypy.json
 .idea
 nedrex_files
 config/
+
+# Ignore files created for the mongoexport
+db_dump
