@@ -1,0 +1,7 @@
+name: mongo_export
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pymongo
+  - mongo-tools
