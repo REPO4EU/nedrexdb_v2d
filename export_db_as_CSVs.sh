@@ -5,6 +5,8 @@ DBNAME="nedrex"
 
 echo "Collection Fields for Database: $DBNAME"
 
+mkdir -p db_dump
+
 # Get all available collections
 collections=$(docker exec -it $CONTAINER_NAME mongo $DBNAME --eval "db.getCollectionNames();" --quiet)
 
