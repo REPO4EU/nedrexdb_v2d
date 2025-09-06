@@ -15,7 +15,7 @@ def getData(target_dir, url):
     _sp.call(
         (
             "wget",
-            "--no-verbose",
+            "--quiet",
             "--read-timeout",
             "10",
             "--recursive",

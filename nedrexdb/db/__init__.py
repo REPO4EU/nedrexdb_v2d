@@ -33,6 +33,7 @@ from nedrexdb.db.models.edges import (
     side_effect_same_as_phenotype as _side_effect_same_as_phenotype,
     variant_affects_gene as _variant_affects_gene,
     variant_associated_with_disorder as _variant_associated_with_disorder,
+    drug_interacts_with_drug as _drug_interacts_with_drug
 )
 
 
@@ -86,3 +87,5 @@ class MongoInstance:
         _side_effect_same_as_phenotype.SideEffectSameAsPhenotype.set_indexes(cls.DB)
         _variant_affects_gene.VariantAffectsGene.set_indexes(cls.DB)
         _variant_associated_with_disorder.VariantAssociatedWithDisorder.set_indexes(cls.DB)
+        _drug_interacts_with_drug.DrugInteractsWithDrug.set_indexes(cls.DB)
+
