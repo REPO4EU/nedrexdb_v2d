@@ -1,6 +1,7 @@
 from langchain_neo4j import Neo4jGraph
 from nedrexdb import config as _config
 import time
+from nedrexdb.logger import logger
 
 NODE_EMBEDDING_CONFIG = {
     "Disorder": {
@@ -249,25 +250,36 @@ EDGE_EMBEDDING_CONFIG = {
 # dev_edges = []
 dev_nodes = None
 dev_edges = None
+open_con = None
 
 
 def get_kg_connection() -> Neo4jGraph:
+    global open_con
     NEO4J_URI = f'bolt://{_config["db.dev.neo4j_name"]}:7687'
 
     retry = 10
-    # kg = None
     while retry > 0:
         try:
-            kg = Neo4jGraph(
-                url=NEO4J_URI, username="", password="", database='neo4j'
-            )
-            return kg
+            if open_con is None:
+                logger.debug(f"Opening connection to {NEO4J_URI}")
+                open_con = Neo4jGraph(
+                    url=NEO4J_URI, username="", password="", database='neo4j'
+                )
+            if open_con is not None:
+                return open_con
         except Exception:
             retry -= 1
             if retry == 0:
-                print("Could not connect to Neo4j database at " + NEO4J_URI)
+                logger.error(f"Failed to connect to Neo4j at {NEO4J_URI} after {10} retries!")
                 return None
-            time.sleep(10)
+        time.sleep(30)
+
+
+def close_kg_connection():
+    global open_con
+    if open_con is not None:
+        open_con.close()
+        open_con = None
 
 
 def create_unique_node_constraint(con, node_type, attribute):
@@ -275,14 +287,16 @@ def create_unique_node_constraint(con, node_type, attribute):
     con.query(query)
 
 def create_constraints():
+    logger.info("Creating unique constraints for IDs")
     kg = get_kg_connection()
     node_list = NODE_EMBEDDING_CONFIG.keys() if not dev_nodes else dev_nodes
     for node in node_list:
         create_unique_node_constraint(kg, node, "primaryDomainId")
+    close_kg_connection()
 
 
 def create_vector_indices():
-    print("Starting indexing")
+    logger.info("Starting indexing")
 
     kg = get_kg_connection()
 
@@ -304,7 +318,7 @@ def create_vector_indices():
         num_retries -= 1
 
     if len(node_list) > 0:
-        print(f"Could not create embeddings successfully for the following nodes: {node_list}")
+        logger.warning(f"Could not create embeddings successfully for the following nodes: {node_list}")
 
     edge_list = EDGE_EMBEDDING_CONFIG.keys() if not dev_edges else dev_edges
     retry_list = []
@@ -320,133 +334,227 @@ def create_vector_indices():
         num_retries -= 1
 
     if len(edge_list) > 0:
-        print(f"Could not create embeddings successfully for the following edges: {edge_list}")
+        logger.warning(f"Could not create embeddings successfully for the following edges: {edge_list}")
 
     if wait_for_database_ready(kg, index_names):
-        print("Ready to switch to read-only mode")
+        logger.info("Ready to switch to read-only mode")
     else:
-        print("Something went wrong with the index build")
+        logger.error("Something went wrong with the index build")
+    close_kg_connection()
 
 
-def get_node_info_string(node_name):
-    info_string = """coalesce(x.type, '') +  ' with ID ' + x.primaryDomainId +':'"""
-    for attribute, format in NODE_EMBEDDING_CONFIG[node_name].items():
-        prefix = f" {format.get('prefix', ' ')} "
-        suffix = f" {format.get('suffix', ' ')} "
-        attribute_type = format.get('type', 'string')
+def get_node_info_string(node_name, node_embedding_config):
+    """
+    Generates a Cypher string snippet for node embeddings in a more readable way.
 
-        info_string += f"+ '{prefix}'"
+    Args:
+        node_name (str): The name of the node label (used to look up the config).
+        node_embedding_config (dict): The configuration dictionary.
+
+    Returns:
+        str: A Cypher string for concatenating node properties.
+    """
+    config = node_embedding_config.get(node_name, {})
+    parts = ["coalesce(x.type, '') + ' with ID ' + x.primaryDomainId + ':'"]
+
+    for attribute, format_config in config.items():
+        prefix = format_config.get('prefix', ' ')
+        suffix = format_config.get('suffix', ' ')
+        attribute_type = format_config.get('type', 'string')
+
         if attribute_type == "list":
-            info_string += f"+ coalesce( apoc.text.join(x.{attribute},', '), '')"
+            part = f"'{prefix}' + coalesce(apoc.text.join(x.{attribute}, ', '), '') + '{suffix};'"
         else:
-            info_string += f"+ coalesce(x.{attribute}, '')"
-        info_string += f"+ '{suffix};'"
-    return info_string
+            part = f"'{prefix}' + coalesce(x.{attribute}, '') + '{suffix};'"
+        parts.append(part)
+
+    return " + ".join(parts)
 
 
-def get_edge_info_string(edge_name):
-    link_term = EDGE_EMBEDDING_CONFIG[edge_name]["link_term"]
-    info_string = f"coalesce(entry.s.type, '') +' '+ coalesce(entry.s.displayName, '') +' with ID ' + entry.s.primaryDomainId + ' {link_term} ' + coalesce(entry.t.type, '') +' '+coalesce(entry.t.displayName, '')+'  with ID '+ entry.t.primaryDomainId +' and has properties:'"
-    if "attributes" in EDGE_EMBEDDING_CONFIG[edge_name].keys():
-        for attribute, format in EDGE_EMBEDDING_CONFIG[edge_name]["attributes"].items():
-            prefix = format.get('prefix', ' ')
-            suffix = format.get('suffix', ' ')
-            attribute_type = format.get('type', 'string')
+def get_edge_info_string(edge_name, edge_embedding_config):
+    """
+    Generates a Cypher string snippet for edge embeddings and fixes a likely bug.
 
-            info_string += f"+'{prefix}'"
+    Args:
+        edge_name (str): The name of the edge type (used to look up the config).
+        edge_embedding_config (dict): The configuration dictionary.
+
+    Returns:
+        str: A Cypher string for concatenating edge and node properties.
+    """
+    config = edge_embedding_config.get(edge_name, {})
+    link_term = config.get("link_term", "is connected to")
+
+    base_info = f"coalesce(entry.s.type, '') + ' ' + coalesce(entry.s.displayName, '') + ' with ID ' + entry.s.primaryDomainId + ' {link_term} ' + coalesce(entry.t.type, '') + ' ' + coalesce(entry.t.displayName, '') + ' with ID ' + entry.t.primaryDomainId"
+    parts = [base_info]
+
+    if "attributes" in config:
+        parts.append("' and has properties:'")
+        for attribute, format_config in config["attributes"].items():
+            prefix = format_config.get('prefix', ' ')
+            suffix = format_config.get('suffix', ' ')
+            attribute_type = format_config.get('type', 'string')
+
             if attribute_type == "list":
-                info_string += f"+ coalesce( apoc.text.join(entry.r.{attribute},', '), '')"
+                part = f"'{prefix}' + coalesce(apoc.text.join(entry.r.{attribute}, ', '), '') + '{suffix};'"
             else:
-                info_string += f"+ coalesce(d.{attribute}, '')"
-            info_string += f"+ '{suffix};'"
-    return info_string
+                part = f"'{prefix}' + coalesce(entry.r.{attribute}, '') + '{suffix};'"
+            parts.append(part)
 
+    return " + ".join(parts)
 
 def fill_vector_index(con, entityType, name) -> bool:
+    retries = 5
     try:
         start = time.time()
-        create_vector_index(con, entityType, name)
-        from nedrexdb.llm import (_LLM_API_KEY, _LLM_BASE, _LLM_path, _LLM_model)
+        from nedrexdb.llm import (_LLM_API_KEY, _LLM_BASE, _LLM_path, _LLM_model, _LLM_embedding_length)
+        create_vector_index(con, entityType, name,_LLM_embedding_length)
         params = {"api_key": _LLM_API_KEY, "llm_base": _LLM_BASE, "llm_path": _LLM_path, "llm_model": _LLM_model}
+        info_string = get_info_string(entityType, name, NODE_EMBEDDING_CONFIG, EDGE_EMBEDDING_CONFIG)
         if entityType == "NODE":
-            info_string = get_node_info_string(name)
             query = create_node_vector_query(info_string, name)
-            con.query(query, params=params)
         else:
-            info_string = get_edge_info_string(name)
             source_name = EDGE_EMBEDDING_CONFIG[name]["source"]
             target_name = EDGE_EMBEDDING_CONFIG[name]["target"]
             query = create_edge_vector_query(info_string, source_name, name, target_name)
-            con.query(query, params=params)
+        while retries > 0:
+            retries -= 1
+            try:
+                con.query(query, params=params)
+                break
+            except Exception as e:
+                print(e)
+                logger.error(f"Encountered an issue! Retry {6 - retries} retrying in 60s...")
+                if retries == 0:
+                    raise e
+                time.sleep(60)
         duration = time.time() - start
-        print(f"Building {name} embedding indexes finished after {duration} seconds")
+        logger.info(f"Building {name} embedding indexes finished after {duration} seconds")
         return True
     except Exception as e:
         print(e)
-        print("Could not create vector index for " + name)
+        logger.error("Could not create vector index for " + name)
         return False
 
+def get_info_string(element_type, name, node_config, edge_config):
+    """
+    Dispatcher function to get the correct info string for a node or edge.
+    This prevents calling the wrong generator with the wrong config by
+    routing the request based on the element_type.
+
+    Args:
+        element_type (str): The type of element, either "NODE" or "EDGE".
+        name (str): The name of the node label or edge type.
+        node_config (dict): The complete node embedding configuration dictionary.
+        edge_config (dict): The complete edge embedding configuration dictionary.
+
+    Returns:
+        str: The generated Cypher string snippet.
+    """
+    if element_type.upper() == "NODE":
+        return get_node_info_string(name, node_config)
+    elif element_type.upper() == "RELATIONSHIP":
+        return get_edge_info_string(name, edge_config)
+    else:
+        raise ValueError(f"Unknown element_type: {element_type}. Must be 'NODE' or 'EDGE'.")
 
 def create_node_vector_query(node_info_string, name):
-    query = """
-      MATCH (n: """ + name + """)
-WITH collect(n) as allNodes
-UNWIND range(0, size(allNodes)-1, 500) as i
-WITH i, allNodes[i..i+500] as batchNodes
-WHERE size(batchNodes) > 0
-CALL apoc.ml.openai.embedding(
-    [x in batchNodes | """ + node_info_string + """], 
-    $api_key, 
-    {
-        endpoint: $llm_base,
-        path: $llm_path,
-        model: $llm_model,
-        enableBackOffRetries: true,
-        backOffRetries: 20,
-        exponentialBackoff: true
-    }
-) YIELD index, embedding
-WITH batchNodes[index] as n, embedding CALL db.create.setNodeVectorProperty(n, "embedding", embedding);"""
+    escaped_node_info_string = node_info_string.replace("'", "\\'")
+    query = f"""
+    CALL apoc.periodic.iterate(
+    'MATCH (n:{name}) WHERE n.embedding IS NULL
+     WITH id(n) AS id
+     WITH collect(id) AS ids
+     UNWIND range(0, size(ids) - 1, 100) AS i
+     RETURN ids[i..i+100] AS id_batch',
+        'UNWIND id_batch AS id
+        MATCH (n:{name}) WHERE id(n) = id
+        WITH collect(n) AS batchNodes
+         CALL apoc.ml.openai.embedding(
+             [x IN batchNodes | {escaped_node_info_string}],
+             $api_key,
+             {{
+                 endpoint: $llm_base,
+                 path: $llm_path,
+                 model: $llm_model,
+                 enableBackOffRetries: true,
+                 backOffRetries: 20,
+                 exponentialBackoff: true
+             }}
+         ) YIELD index, embedding
+         WITH batchNodes[index] as node, embedding
+         CALL db.create.setNodeVectorProperty(node, "embedding", embedding) 
+         RETURN count(*)',
+        {{
+            batchSize: 10,
+            parallel: false,
+            params: {{
+                api_key: $api_key,
+                llm_base: $llm_base,
+                llm_path: $llm_path,
+                llm_model: $llm_model
+            }}
+        }}
+    )
+    """
     return query
 
 
 def create_edge_vector_query(edge_info_string, source_name, name, target_name):
-    query = """MATCH (s: """ + source_name + """)-[r: """ + name + """]-(t: """ + target_name + """)
-    WITH collect({s:s,r:r,t:t}) as allEntries
-    UNWIND range(0, size(allEntries)-1, 500) as i
-    WITH i, allEntries[i..i+500] as batchEntries
-    WHERE size(batchEntries) > 0
-    CALL apoc.ml.openai.embedding(
-        [entry in batchEntries | """ + edge_info_string + """
-        ], 
-        "$api_key", 
-        {
-            endpoint: $llm_base,
-            path: $llm_path,
-            model: $llm_model,
-            enableBackOffRetries: true,
-            backOffRetries: 20,
-            exponentialBackoff: true
-        }
-    ) YIELD index, embedding
-    WITH batchEntries[index] as entry, embedding CALL db.create.setRelationshipVectorProperty(entry.r, "embedding", embedding);"""
+    escaped_node_info_string = edge_info_string.replace("'", "\\'")
+    query = f"""
+      CALL apoc.periodic.iterate(
+          'MATCH (s:{source_name})-[r:{name}]-(t:{target_name}) WHERE r.embedding IS NULL
+           WITH id(r) AS id
+           WITH collect(id) AS ids
+           UNWIND range(0, size(ids) - 1, 100) AS i
+           RETURN ids[i..i+100] AS id_batch',
+           'UNWIND id_batch AS id
+           MATCH (s:{source_name})-[r:{name}]-(t:{target_name}) WHERE id(r) = id
+           WITH collect({{s:s, r:r, t:t}}) AS batchEntries
+          CALL apoc.ml.openai.embedding(
+              [entry in batchEntries | {escaped_node_info_string}], 
+              $api_key, 
+              {{
+                  endpoint: $llm_base,
+                  path: $llm_path,
+                  model: $llm_model,
+                  enableBackOffRetries: true,
+                  backOffRetries: 20,
+                  exponentialBackoff: true
+              }}
+          ) YIELD index, embedding
+          WITH batchEntries[index] as entry, embedding 
+          CALL db.create.setRelationshipVectorProperty(entry.r, "embedding", embedding)
+          RETURN count(*)',
+          {{
+            batchSize: 10,
+            parallel: false,
+            params: {{
+                api_key: $api_key,
+                llm_base: $llm_base,
+                llm_path: $llm_path,
+                llm_model: $llm_model
+            }}
+          }}
+      )
+    """
     return query
 
-
-def create_vector_index(con, entityType, name):
+def create_vector_index(con, entityType, name, length=1024):
     props = {"index_name": f"{name.lower()}Embeddings"}
     if entityType == "NODE":
         con.query("""CREATE VECTOR INDEX $index_name IF NOT EXISTS
         FOR (d: """ + name + """) ON (d.embedding) 
         OPTIONS { indexConfig: {
-          `vector.dimensions`: 1024,
+          `vector.dimensions`: """+str(length)+""",
           `vector.similarity_function`: 'cosine'
         }}""", params=props)
     else:
         con.query("""CREATE VECTOR INDEX $index_name IF NOT EXISTS
                FOR ()-[r:""" + name + """]-() ON (r.embedding) 
                OPTIONS { indexConfig: {
-                 `vector.dimensions`: 1024,
+                 `vector.dimensions`: """+str(length)+""",
                  `vector.similarity_function`: 'cosine'
                }}""", params=props)
 
@@ -463,18 +571,17 @@ def wait_for_database_ready(con, index_names=['bad_default']):
 
             if result:
                 index = result[0]
-                print(f"\nIndex details:")
-                print(f"- Name: {index['name']}")
-                print(f"- State: {index['state']}")
-                print(f"- Type: {index['type']}")
-                print(f"- Labels: {index['labelsOrTypes']}")
-                print(f"- Properties: {index['properties']}")
-
+                logger.debug(f"\nIndex details:")
+                logger.debug(f"- Name: {index['name']}")
+                logger.debug(f"- State: {index['state']}")
+                logger.debug(f"- Type: {index['type']}")
+                logger.debug(f"- Labels: {index['labelsOrTypes']}")
+                logger.debug(f"- Properties: {index['properties']}")
                 return index['state'] == 'ONLINE'
             else:
-                print(f"\nNo index found with name {index_name}")
+                logger.warning(f"\nNo index found with name {index_name}")
                 return False
 
         except Exception as e:
-            print(f"\nError checking index: {str(e)}")
+            logger.error(f"\nError checking index: {str(e)}")
             return False
