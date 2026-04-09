@@ -42,7 +42,12 @@ class Downloader(_BaseModel):
                 _logger.warning(f"failed to download {self.url!r}")
                 time.sleep(10)
             else:
-                return
+                if not self.target.exists():
+                    _logger.error(f"file {self.target} was not downloaded!")
+                elif self.target.stat().st_size == 0:
+                    _logger.error(f"file {self.target} is empty!")
+                else:
+                    return
         _logger.critical(f"failed to download {self.url!r} three times, aborting!")
 
     def _download(self):

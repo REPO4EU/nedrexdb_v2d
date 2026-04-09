@@ -6,6 +6,7 @@ from nedrexdb.db import MongoInstance
 from nedrexdb.db.parsers import _get_file_location_factory
 from nedrexdb.db.models.nodes.drug import Drug
 from nedrexdb.downloaders import get_latest_chembl_version
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("chembl")
 
@@ -26,26 +27,41 @@ def decompress_if_necessary():
     version = get_latest_chembl_version()
     url_path = get_file_location("sqlite")
 
-    target = url_path.parents[0] / url_path.name.rsplit(".", 2)[0].format(version)
-    if target.exists():
-        return target
+    target_dir = url_path.parents[0] / url_path.name.rsplit(".", 2)[0].format(version)
 
-    target.mkdir(parents=True)
-    path = url_path.parents[0] / url_path.name.format(version)
-    _sp.call(
-        ["tar", "-zxvf", f"{path}", "-C", f"{target.resolve()}", "--strip-components", "1"], cwd=f"{path.parents[0]}"
-    )
+    if not target_dir.exists():
+        target_dir.mkdir(parents=True)
 
-    return target
+    db_list = [i for i in target_dir.rglob("*") if i.name.endswith(".db")]
+    assert len(db_list) <= 1, f"Expected at most one .db file in {target_dir}, found {len(db_list)}"
+
+    if not db_list:
+        # unpack
+        path = url_path.parents[0] / url_path.name.format(version)
+        _sp.call(
+            ["tar", "-zxvf", f"{path}", "-C", f"{target_dir.resolve()}", "--strip-components", "1"], cwd=f"{path.parents[0]}"
+        )
+
+    db_list = [i for i in target_dir.rglob("*") if i.name.endswith(".db")]
+    assert len(db_list) == 1, f"Expected exactly one .db file in {target_dir}, found {len(db_list)}"
+    
+    return db_list[0]
 
 
 def parse_chembl():
+    logger.info("Parsing ChEMBL")
     cd_map = get_chembl_drugbank_map()
 
-    path = decompress_if_necessary()
-    db = [i for i in path.rglob("*") if i.name.endswith(".db")][0]
+    db = decompress_if_necessary()
     con = sqlite3.connect(f"{db}")
     cur = con.cursor()
+
+    # check overlap between drugbank and chembl
+    drugs = {drug["primaryDomainId"].replace("drugbank.", "") for drug in Drug.find(MongoInstance.DB)}
+    # print intersection and exclusives
+    logger.debug(f"Intersection of DrugBank and ChEMBL drugs : {len(drugs & set(cd_map.keys()))}")
+    logger.debug(f"Exclusive to DrugBank: {len(drugs - set(cd_map.keys()))}")
+    logger.debug(f"Exclusive to ChEMBL (not added to NeDRex): {len(set(cd_map.keys()) - drugs)}")
 
     for drugbank_id, chembl_id in cd_map.items():
         result = list(cur.execute("SELECT MAX_PHASE FROM MOLECULE_DICTIONARY WHERE CHEMBL_ID = '%s'" % chembl_id))

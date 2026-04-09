@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from nedrexdb.db import MongoInstance
 from nedrexdb.db.parsers import _get_file_location_factory
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("unichem")
 
@@ -21,6 +22,7 @@ def validate_file(file) -> bool:
 
 
 def parse():
+    logger.info("Parsing UniChem")
     fname = get_file_location("pubchem_drugbank_map")
     updates = []
 

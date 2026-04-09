@@ -9,6 +9,7 @@ from nedrexdb.db.models.edges.protein_in_pathway import ProteinInPathway
 from nedrexdb.db.models.nodes.pathway import Pathway
 from nedrexdb.db.models.nodes.protein import Protein
 from nedrexdb.db.parsers import _get_file_location_factory
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("reactome")
 
@@ -133,6 +134,9 @@ class ReactomeParser:
 
 
 def parse():
+
+    logger.info("Parsing Reactome")
+
     f = get_file_location("uniprot_annotations")
     r = ReactomeParser(f)
     r.parse_pathways()

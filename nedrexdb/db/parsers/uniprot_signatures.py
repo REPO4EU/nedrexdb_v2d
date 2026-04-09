@@ -168,6 +168,6 @@ def parse():
             signature_coll.bulk_write(signatures)
         if len(relationships) > 0:
             protein_has_sig_coll.bulk_write(relationships)
-    logger.info(f"Parsed {parsed_records} proteins, {len(missing_protein_ids)} were not parsed yet.")
-    logger.debug(f"Missing protein IDs: {missing_protein_ids}")
+    logger.debug(f"Parsed {parsed_records} proteins, {len(missing_protein_ids)} were not found in NeDRex.")
+    logger.debug(f"Example missing IDs protein IDs: {list(missing_protein_ids)[:min(10, len(missing_protein_ids))]}")
 

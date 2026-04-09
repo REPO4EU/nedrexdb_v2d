@@ -226,6 +226,7 @@ class ClinVarRow:
 
 
 def parse():
+    logger.info("Parsing ClinVar")
     fname = get_file_location("human_data")
     parser = ClinVarVCFParser(fname)
 

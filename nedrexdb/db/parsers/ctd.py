@@ -11,6 +11,7 @@ from nedrexdb.db.parsers import _get_file_location_factory
 from nedrexdb.db.models.nodes.disorder import Disorder
 from nedrexdb.db.models.nodes.drug import Drug
 from nedrexdb.db.models.edges.drug_has_indication import DrugHasIndication
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("ctd")
 
@@ -64,6 +65,7 @@ def cas_rn_to_nedrex_map() -> dict[str, list[str]]:
 
 
 def parse():
+    logger.info("Parsing CTD")
     fieldnames = [
         "ChemicalName",
         "ChemicalID",

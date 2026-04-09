@@ -7,11 +7,14 @@ from nedrexdb.db.parsers import _get_file_location_factory
 from nedrexdb.db.models.nodes.phenotype import Phenotype
 from nedrexdb.db.models.nodes.side_effect import SideEffect
 from nedrexdb.db.models.edges.side_effect_same_as_phenotype import SideEffectSameAsPhenotype
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("bioontology")
 
 
 def parse():
+    logger.info("Parsing BioOntology")
+
     fname = get_file_location("meddra_mappings")
 
     with fname.open() as f:

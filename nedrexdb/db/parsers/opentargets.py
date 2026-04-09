@@ -92,9 +92,9 @@ class OpenTargetsParser:
         df_mapping_with_idspace = df_mapping.withColumn(
             "idspace", F.split(F.col("id"), "_")[0]
         )
-        idspace_count = df_mapping_with_idspace.groupBy("idspace").count().orderBy("count", ascending=False)
-        logger.debug(f"OpenTargets: Counting idspaces and their distribution in the disease file.")
-        idspace_count.show()
+        #idspace_count = df_mapping_with_idspace.groupBy("idspace").count().orderBy("count", ascending=False)
+        #logger.debug(f"OpenTargets: Counting idspaces and their distribution in the disease file.")
+        #idspace_count.show()
         
         total_rows_disease_file = df_mapping.count()
         # Filter rows where dbXRefs contains a MONDO ID or primary id is MONDO
@@ -151,9 +151,9 @@ class OpenTargetsParser:
         df_associations_summary = df_associations_summary.withColumn(
             "idspace", F.split(F.col("diseaseId"), "_")[0]
         )
-        idspace_count_summary = df_associations_summary.groupBy("idspace").count().orderBy("count", ascending=False)
-        logger.debug(f"OpenTargets: Counting idspaces and their distribution in the associations summary file.")
-        idspace_count_summary.show()
+        #idspace_count_summary = df_associations_summary.groupBy("idspace").count().orderBy("count", ascending=False)
+        #logger.debug(f"OpenTargets: Counting idspaces and their distribution in the associations summary file.")
+        #idspace_count_summary.show()
         
         summary_score_mapping = {}
         count_not_mapped_scores = 0
@@ -186,8 +186,8 @@ class OpenTargetsParser:
         df = df.withColumn('diseaseId_clean', F.regexp_replace(F.col('diseaseId'), '_', ':'))
 
         # show the distribution of the idspaces
-        idspace_count_associations = df.groupBy("diseaseIdType").count().orderBy("count", ascending=False)
-        idspace_count_associations.show()
+        #idspace_count_associations = df.groupBy("diseaseIdType").count().orderBy("count", ascending=False)
+        #idspace_count_associations.show()
         
         # broadcast the mappings_diseases dictionary for better performance
         mapping_broadcast = spark.sparkContext.broadcast(mappings_diseases)

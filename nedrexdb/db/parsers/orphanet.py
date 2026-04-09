@@ -72,19 +72,16 @@ class OrphanetParser:
 
     def parse(self):
 
-        logger.info("Parsing OrphaNet")
-        logger.info("\tParsing disorder-gene associations from OrphaNet")
-
         orpha_mondo = self.get_orpha_mondo_mapping()
-        logger.info(f"Anzahl der Orphanet-IDs: {len(orpha_mondo)}")
+        logger.debug(f"Number of Orphanet-IDs: {len(orpha_mondo)}")
         avg_mondo_ids = sum(len(mondo_ids) for mondo_ids in orpha_mondo.values()) / len(orpha_mondo)
-        logger.info(f"Durchschnittliche Anzahl von MONDO-IDs pro Orphanet-ID: {avg_mondo_ids:.2f}")
+        logger.debug(f"Average number of MONDO-IDs per Orphanet-ID: {avg_mondo_ids:.2f}")
 
         # have the same length
         ordered_OrphaCode = self.get_OrphaCode() # array with numbers as strings (orpha ids)
         ordered_associatedGenes = self.get_genes() # array with arrays of genes -> order matching to orpha ids they are associated with?
-        logger.info(f"Number of Orphanet codes: {len(ordered_OrphaCode)}")
-        logger.info(f"Number of associated genes: {len(ordered_associatedGenes)}")
+        logger.debug(f"Number of Orphanet codes: {len(ordered_OrphaCode)}")
+        logger.debug(f"Number of associated genes: {len(ordered_associatedGenes)}")
         
         dict_disorder_genes = {}
         chunk = []
@@ -101,10 +98,10 @@ class OrphanetParser:
                     dict_disorder_genes[mondo] = set()
                 dict_disorder_genes[mondo].update(ordered_associatedGenes[i]) # key: disorder id, value: set of genes that are associated with this disorder
         dict_disorder_genes = {key: list(value) for key, value in dict_disorder_genes.items()}
-        logger.info(f"Number of unmapped Orphanet codes: {num_unmapped_orpha}")
-        logger.info(len(dict_disorder_genes))
+        logger.debug(f"Number of unmapped Orphanet codes: {num_unmapped_orpha}")
+        logger.debug(len(dict_disorder_genes))
         avg_gene_ids = sum(len(gene_ids) for gene_ids in dict_disorder_genes.values()) / len(dict_disorder_genes)
-        logger.info(f"Average number of genes per disorder: {avg_gene_ids:.2f}")
+        logger.debug(f"Average number of genes per disorder: {avg_gene_ids:.2f}")
         
         # get gene id mapping
         symbol2entrez = {gene["approvedSymbol"]: gene["primaryDomainId"] for gene in Gene.find(MongoInstance.DB)}
