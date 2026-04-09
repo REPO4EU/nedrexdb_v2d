@@ -11,6 +11,7 @@ from nedrexdb.db.parsers import _get_file_location_factory
 from nedrexdb.db.models.nodes.disorder import Disorder
 from nedrexdb.db.models.nodes.phenotype import Phenotype
 from nedrexdb.db.models.edges.disorder_has_phenotype import DisorderHasPhenotype
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("hpo")
 
@@ -132,6 +133,7 @@ def parse_hpoa():
 
 
 def parse():
+    logger.info("Parsing HPO")
     for chunk in _tqdm(chunked(parse_phenotypes(), 1_000), leave=False, desc="Parsing HPO phenotypes"):
         updates = [node.generate_update() for node in chunk]
         MongoInstance.DB[Phenotype.collection_name].bulk_write(updates)

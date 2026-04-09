@@ -235,6 +235,9 @@ def _drug_central_xref_updates(dc_to_db_map: dict[str, list[str]], nedrex_drugs:
 
 
 def parse_drug_central():
+
+    _logger.info("Parsing Drug Central")
+
     with drug_central_container() as p:
         # NOTE: NeDRexDB does not include cross-references to the DrugCentral IDs.
         #       This should be added for quality of life and tracking.

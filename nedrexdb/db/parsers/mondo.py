@@ -152,6 +152,7 @@ def _parse_edges(edges):
 
 
 def parse_mondo_json():
+    logger.info("Parsing mondo")
     # Get the filename based on the config
     filename = get_file_location("json")
     with open(filename, "r") as f:

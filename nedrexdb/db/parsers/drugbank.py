@@ -17,6 +17,7 @@ from nedrexdb.db.models.nodes.drug import Drug, BiotechDrug, SmallMoleculeDrug
 from nedrexdb.db.models.nodes.protein import Protein
 from nedrexdb.db.models.edges.drug_has_target import DrugHasTarget
 from nedrexdb.exceptions import AssumptionError as _AssumptionError
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("drugbank")
 
@@ -287,12 +288,14 @@ def parse_drugbank_open():
 
 
 def parse_drugbank():
+    logger.info("Parsing DrugBank (open)")
     updates = (drug.generate_update() for drug in parse_drugbank_open())
     for chunk in _chunked(updates, 1_000):
         MongoInstance.DB[Drug.collection_name].bulk_write(chunk)
 
 
 def _parse_drugbank():
+    logger.info("Parsing DrugBank (licensed)")
     filename = get_file_location("all")
 
     def db_iter():

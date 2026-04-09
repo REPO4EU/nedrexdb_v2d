@@ -8,6 +8,7 @@ from tqdm import tqdm as _tqdm
 from nedrexdb.db import MongoInstance
 from nedrexdb.db.parsers import _get_file_location_factory
 from nedrexdb.db.models.nodes.gene import Gene
+from nedrexdb.logger import logger
 
 get_file_location = _get_file_location_factory("ncbi")
 
@@ -82,6 +83,8 @@ class GeneInfoRow:
 
 
 def parse_gene_info():
+    logger.info("Parsing NCBI gene info")
+
     columns = (
         "tax_id",
         "GeneID",

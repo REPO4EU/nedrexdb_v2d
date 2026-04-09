@@ -61,7 +61,7 @@ def parse_chembl():
     # print intersection and exclusives
     logger.debug(f"Intersection of DrugBank and ChEMBL drugs : {len(drugs & set(cd_map.keys()))}")
     logger.debug(f"Exclusive to DrugBank: {len(drugs - set(cd_map.keys()))}")
-    logger.debug(f"Exclusive to ChEMBL (not added to NeDRex): {len(set(cd_map.keys()) - drugs)})")
+    logger.debug(f"Exclusive to ChEMBL (not added to NeDRex): {len(set(cd_map.keys()) - drugs)}")
 
     for drugbank_id, chembl_id in cd_map.items():
         result = list(cur.execute("SELECT MAX_PHASE FROM MOLECULE_DICTIONARY WHERE CHEMBL_ID = '%s'" % chembl_id))
