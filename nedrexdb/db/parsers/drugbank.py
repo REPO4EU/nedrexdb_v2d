@@ -211,7 +211,42 @@ class DrugBankEntry:
 
     def get_molecular_formula(self) -> _Optional[str]:
         return self._calculated_properties.get("Molecular Formula")
+    
+    def get_eu_approved_drugs(self) -> list[str]:
 
+        products_block = self._entry.get(ns("products"))
+        if not products_block:
+            return []
+
+        products = products_block.get(ns("product"))
+        if not products:
+            return []
+
+        if isinstance(products, _OrderedDict):
+            products = [products]
+
+        eu_approved_names = set()
+
+        for p in products:
+
+            def get(field):
+                val = p.get(ns(field))
+                if not val:
+                    return None
+                return val.get("$")
+
+            country = get("country")
+            if country != "EU":
+                continue
+
+            name = get("name")
+            approved = get("approved")
+
+            if approved and name:
+                eu_approved_names.add(name)
+        return list(eu_approved_names)
+
+        
     def get_sequences(self) -> list[str]:
         sequences: list[str] = []
 
@@ -250,6 +285,7 @@ class DrugBankEntry:
 
         d.displayName = self.get_display_name()
         d.synonyms = self.get_synonyms()
+        d.approvedEuDrugs = self.get_eu_approved_drugs()
         d.drugCategories = self.get_drug_categories()
         d.drugGroups = self.get_drug_groups()
         d.casNumber = self.get_cas_number()

@@ -33,6 +33,7 @@ class Drug(_BaseModel, DrugBase):
     drugGroups: list[str] = _Field(default_factory=list)
     casNumber: _StrictStr = ""
     indication: _StrictStr = ""
+    approvedEuDrugs: list[str] = _Field(default_factory=list)
 
     def generate_update(self):
         tnow = _datetime.datetime.utcnow()
@@ -44,6 +45,7 @@ class Drug(_BaseModel, DrugBase):
                 "drugCategories": {"$each": self.drugCategories},
                 "drugGroups": {"$each": self.drugGroups},
                 "dataSources": {"$each": self.dataSources},
+                "approvedEuDrugs": {"$each": self.approvedEuDrugs},
             },
             "$setOnInsert": {"created": tnow},
             "$set": {
@@ -76,6 +78,7 @@ class BiotechDrug(Drug):
                 "synonyms": {"$each": self.synonyms},
                 "drugCategories": {"$each": self.drugCategories},
                 "drugGroups": {"$each": self.drugGroups},
+                "approvedEuDrugs": {"$each": self.approvedEuDrugs},
             },
             "$set": {
                 "displayName": self.displayName,
@@ -111,6 +114,7 @@ class SmallMoleculeDrug(Drug):
                 "synonyms": {"$each": self.synonyms},
                 "drugCategories": {"$each": self.drugCategories},
                 "drugGroups": {"$each": self.drugGroups},
+                "approvedEuDrugs": {"$each": self.approvedEuDrugs},
             },
             "$set": {
                 "displayName": self.displayName,
